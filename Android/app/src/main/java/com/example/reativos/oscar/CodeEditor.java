@@ -14,7 +14,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TabHost;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -34,8 +36,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.SortedSet;
 import java.util.UUID;
 import android.util.Log;
+import android.widget.TabHost.OnTabChangeListener;
 
 
 public class CodeEditor extends ActionBarActivity {
@@ -44,9 +50,9 @@ public class CodeEditor extends ActionBarActivity {
     Button cleanCode;
     String address = null;
     public List<Command> codeMain = new ArrayList<>();
-    final Map<String, List<Command>> commandLists = new HashMap<>();
+    final Map<String, List<Command>> commandLists = new TreeMap<>();
     final Map<String, ArrayAdapter<Command>> adapters = new HashMap<>();
-    final Map<String, Character> reactionTypes = new HashMap<>();
+    final Map<String, Integer> reactionTypes = new HashMap<>();
 
     private ProgressDialog progress;
     BluetoothAdapter myBluetooth = null;
@@ -84,6 +90,52 @@ public class CodeEditor extends ActionBarActivity {
         host.setup();
         resetTabs(host, commandLists);
 
+        // callback for tab
+        reactionTypes.put("MAIN", 0);
+        host.setOnTabChangedListener(new OnTabChangeListener() {
+
+            @Override
+            public void onTabChanged(String tabId) {
+                final String currentTabTag = host.getCurrentTabTag();
+                if(currentTabTag != "MAIN") {
+                    final AddReaction reaction = new AddReaction();
+                    reaction.show(getFragmentManager(), "Add new reaction");
+
+                    reaction.setOnDismissListener(new AddReaction.OnDismissListener() {
+                        @Override
+                        public void onDismiss(AddReaction myDialogFragment) {
+                            int tabIndex = host.getCurrentTab();
+                            final int reaction_type = dataStore.getInt("reaction");
+                            String title = "Sensor";
+                            if (reaction_type == 2)
+                                title = "Timer";
+
+                            LinearLayout rLayout = (LinearLayout) host.getTabWidget().getChildAt(tabIndex);
+                            ((TextView) rLayout.getChildAt(1)).setText(title);
+
+                            reactionTypes.put(currentTabTag, reaction_type);
+                            if(reaction_type == 2) {
+                                dataStore.setString("type", "wait");
+                                final AddParam param = new AddParam();
+                                param.show(getFragmentManager(), "Add new param");
+                                param.setOnDismissListener(new AddParam.OnDismissListener() {
+                                    @Override
+                                    public void onDismiss(AddParam myDialogFragment) {
+                                        int command_param = dataStore.getInt("param");
+                                        Command newCommand = new Command("wait", command_param);
+                                        commandLists.get(currentTabTag).add(newCommand);
+                                        adapters.get(currentTabTag).notifyDataSetChanged();
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+
+
+            }
+        });
+
         // Set up lists
         for(Map.Entry<String, List<Command>> commandList : commandLists.entrySet()) {
             ArrayAdapter<Command> adapter =
@@ -111,12 +163,13 @@ public class CodeEditor extends ActionBarActivity {
                     // Iterate over list of commands to generate code
                     String code = "";
                     for (Map.Entry<String, List<Command>> commandList : commandLists.entrySet()) {
+                        if (!code.isEmpty())
+                            code += "|";
                         if (commandList.getValue().size() > 0) {
                             code += reactionTypes.get(commandList.getKey());
-                            for (Command c : commandLists.get(currentTabTag)) {
+                            for (Command c : commandList.getValue()) {
                                 code += c.serialize();
                             }
-                            code += "|";
                         }
                     }
                     code += "/";
