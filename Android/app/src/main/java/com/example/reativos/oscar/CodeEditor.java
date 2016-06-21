@@ -46,6 +46,7 @@ public class CodeEditor extends ActionBarActivity {
     public List<Command> codeMain = new ArrayList<>();
     final Map<String, List<Command>> commandLists = new HashMap<>();
     final Map<String, ArrayAdapter<Command>> adapters = new HashMap<>();
+    final Map<String, Character> reactionTypes = new HashMap<>();
 
     private ProgressDialog progress;
     BluetoothAdapter myBluetooth = null;
@@ -84,7 +85,6 @@ public class CodeEditor extends ActionBarActivity {
         resetTabs(host, commandLists);
 
         // Set up lists
-        int i = 0;
         for(Map.Entry<String, List<Command>> commandList : commandLists.entrySet()) {
             ArrayAdapter<Command> adapter =
                     new ArrayAdapter<Command>(this, android.R.layout.simple_list_item_1,
@@ -98,7 +98,6 @@ public class CodeEditor extends ActionBarActivity {
                 ((ListView) findViewById(R.id.reactionCodeList2)).setAdapter(adapter);
 
             adapters.put(commandList.getKey(), adapter);
-            i++;
         }
 
         // Send message when button is clicked!
@@ -109,9 +108,16 @@ public class CodeEditor extends ActionBarActivity {
                 final String currentTabTag = host.getCurrentTabTag();
 
 //                try {
-                    String code = "0";
-                    for (Command c : commandLists.get(currentTabTag)) {
-                        code += c.serialize();
+                    // Iterate over list of commands to generate code
+                    String code = "";
+                    for (Map.Entry<String, List<Command>> commandList : commandLists.entrySet()) {
+                        if (commandList.getValue().size() > 0) {
+                            code += reactionTypes.get(commandList.getKey());
+                            for (Command c : commandLists.get(currentTabTag)) {
+                                code += c.serialize();
+                            }
+                            code += "|";
+                        }
                     }
                     code += "/";
                     Log.i("MainActivity", code);
