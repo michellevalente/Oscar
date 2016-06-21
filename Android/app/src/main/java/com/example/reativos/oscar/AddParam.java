@@ -73,7 +73,7 @@ public class AddParam extends DialogFragment {
         }
         else if (type.equals("buzz") || type.equals("wait"))
         {
-            builder.setTitle("Type the time: ");
+            builder.setTitle("Type the time (ms): ");
             final EditText input = new EditText(getActivity());
             input.setInputType(InputType.TYPE_NUMBER_FLAG_SIGNED);
             builder.setView(input);

@@ -12,7 +12,9 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TabHost;
 import android.widget.Toast;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -29,7 +31,9 @@ import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import android.util.Log;
 
@@ -40,6 +44,8 @@ public class CodeEditor extends ActionBarActivity {
     Button cleanCode;
     String address = null;
     public List<Command> codeMain = new ArrayList<>();
+    final Map<String, List<Command>> commandLists = new HashMap<>();
+    final Map<String, ArrayAdapter<Command>> adapters = new HashMap<>();
 
     private ProgressDialog progress;
     BluetoothAdapter myBluetooth = null;
@@ -57,7 +63,7 @@ public class CodeEditor extends ActionBarActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        final ArrayList commands = new ArrayList();
+
         /**
          * Set up global app data source
          */
@@ -65,35 +71,57 @@ public class CodeEditor extends ActionBarActivity {
         dataStore.initialize(getApplicationContext());
 
         Intent newint = getIntent();
-        address = newint.getStringExtra(DeviceList.EXTRA_ADDRESS); //receive the address of the bluetooth device
+        //address = newint.getStringExtra(DeviceList.EXTRA_ADDRESS); //receive the address of the bluetooth device
 
         setContentView(R.layout.activity_code_editor);
 
-        new ConnectBT().execute(); //Call the class to connect
+        //new ConnectBT().execute(); //Call the class to connect
 
 
-        ListView commandList = (ListView) findViewById(R.id.commandList);
-        final ArrayAdapter adapter = new ArrayAdapter(this,android.R.layout.simple_list_item_1, commands);
-        commandList.setAdapter(adapter);
+        // Set up tab view
+        final TabHost host = (TabHost)findViewById(R.id.tabHost);
+        host.setup();
+        resetTabs(host, commandLists);
+
+        // Set up lists
+        int i = 0;
+        for(Map.Entry<String, List<Command>> commandList : commandLists.entrySet()) {
+            ArrayAdapter<Command> adapter =
+                    new ArrayAdapter<Command>(this, android.R.layout.simple_list_item_1,
+                            commandList.getValue());
+
+            if (commandList.getKey().equals("MAIN"))
+                ((ListView) findViewById(R.id.mainCodeList)).setAdapter(adapter);
+            else if (commandList.getKey().equals("REACTION 1"))
+                ((ListView) findViewById(R.id.reactionCodeList1)).setAdapter(adapter);
+            else if (commandList.getKey().equals("REACTION 2"))
+                ((ListView) findViewById(R.id.reactionCodeList2)).setAdapter(adapter);
+
+            adapters.put(commandList.getKey(), adapter);
+            i++;
+        }
 
         // Send message when button is clicked!
         send = (Button) findViewById(R.id.SendButton);
         send.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                try {
+                final String currentTabTag = host.getCurrentTabTag();
+
+//                try {
                     String code = "0";
-                    for (Command c : codeMain) {
-                        code += c.toString();
+                    for (Command c : commandLists.get(currentTabTag)) {
+                        code += c.serialize();
                     }
                     code += "/";
                     Log.i("MainActivity", code);
-                    btSocket.getOutputStream().write(code.getBytes());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                //    btSocket.getOutputStream().write(code.getBytes());
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
             }
         });
+
         // Send message when button is clicked!
         addCommand = (Button) findViewById(R.id.addCommand);
         addCommand.setOnClickListener(new View.OnClickListener() {
@@ -103,6 +131,8 @@ public class CodeEditor extends ActionBarActivity {
                 command.show(getFragmentManager(), "Add new command");
 
                 int commandToRead = dataStore.getInt("commandToRead" );
+
+                final String currentTabTag = host.getCurrentTabTag();
 
                 command.setOnDismissListener(new AddCommand.OnDismissListener() {
                     @Override
@@ -116,15 +146,13 @@ public class CodeEditor extends ActionBarActivity {
                                 int command_param = dataStore.getInt("param");
                                 if (command_type != null ) {
                                     Command newCommand = new Command(command_type, command_param);
-                                    commands.add(command_type + command_param);
-                                    adapter.notifyDataSetChanged();
-                                    codeMain.add(newCommand);
+                                    commandLists.get(currentTabTag).add(newCommand);
+                                    adapters.get(currentTabTag).notifyDataSetChanged();
                             }
                         }
                         });
                     }
                 });
-
                 //}
             }
         });
@@ -135,9 +163,9 @@ public class CodeEditor extends ActionBarActivity {
         cleanCode.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                codeMain.clear();
-                commands.clear();
-                adapter.notifyDataSetChanged();
+                final String currentTabTag = host.getCurrentTabTag();
+                commandLists.get(currentTabTag).clear();
+                adapters.get(currentTabTag).notifyDataSetChanged();
             }
         });
 
@@ -158,6 +186,30 @@ public class CodeEditor extends ActionBarActivity {
         }
         finish(); //return to the first layout
 
+    }
+
+    // Reset all the tabs
+    private void resetTabs(TabHost host, Map<String, List<Command>> commandLists) {
+        // Set up the tabs
+        TabHost.TabSpec spec = host.newTabSpec("MAIN");
+        spec.setContent(R.id.mainTab);
+        spec.setIndicator("MAIN");
+        commandLists.put(spec.getTag(), new ArrayList<Command>());
+        host.addTab(spec);
+
+        //Tab 2
+        spec = host.newTabSpec("REACTION 1");
+        spec.setContent(R.id.reactionTab1);
+        spec.setIndicator("REACTION 1");
+        commandLists.put(spec.getTag(), new ArrayList<Command>());
+        host.addTab(spec);
+
+        //Tab 3
+        spec = host.newTabSpec("REACTION 2");
+        spec.setContent(R.id.reactionTab2);
+        spec.setIndicator("REACTION 2");
+        commandLists.put(spec.getTag(), new ArrayList<Command>());
+        host.addTab(spec);
     }
 
     // fast way to call Toast
@@ -219,7 +271,7 @@ public class CodeEditor extends ActionBarActivity {
         try {
             btSocket.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         AppIndex.AppIndexApi.end(client, viewAction);
         client.disconnect();

@@ -35,7 +35,7 @@ public class Command {
         return true;
     }
 
-    public String toString() {
+    public String serialize() {
         String str = this.type;
 
         if (type.equals("loop")) {
@@ -47,6 +47,34 @@ public class Command {
         else if (param != -1) {
             str += Integer.toString(param);
         }
+
+        return str;
+    }
+
+    @Override
+    public String toString() {
+        String str = this.type + " ";
+
+        if (type.equals("move")) {
+            if (param == 1) str += "Forward";
+            else if (param == 0) str += "Backward";
+        }
+        else if (type.equals("turn")) {
+            if (param == 1) str += "Right";
+            else if (param == 0) str += "Left";
+        }
+        else if (type.contains("led")) {
+            if (str.charAt(3) == 'r')
+                str = "red led ";
+            else if (str.charAt(3) == 'b')
+                str = "blue led ";
+
+            if (param == 1) str += "ON";
+            else if (param == 0) str += "OFF";
+        }
+        else if (type.equals("buzz") || type.equals("wait"))
+            str += Integer.toString(param) + "ms";
+
 
         return str;
     }

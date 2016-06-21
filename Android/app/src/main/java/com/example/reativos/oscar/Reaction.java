@@ -8,7 +8,7 @@ import java.util.ArrayList;
  */
 public class Reaction {
     public List<Command> children = new ArrayList<>();
-    public Types type;
+    public String type;
 
     public interface Types {
         String GENERIC = "0";
@@ -16,7 +16,7 @@ public class Reaction {
         String TIMER = "2";
     }
 
-    Reaction(Types type) {
+    Reaction(String type) {
         this.type = type;
     }
 
@@ -32,12 +32,16 @@ public class Reaction {
     }
 
     public String toString() {
-        String str = type.toString();
+        String str = type;
 
         for(Command c : children) {
-            str += c.toString();
+            str += c.serialize();
         }
 
         return str;
+    }
+
+    public void clear() {
+        children.clear();
     }
 }
