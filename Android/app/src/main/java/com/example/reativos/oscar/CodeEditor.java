@@ -163,7 +163,7 @@ public class CodeEditor extends ActionBarActivity {
                     // Iterate over list of commands to generate code
                     String code = "";
                     for (Map.Entry<String, List<Command>> commandList : commandLists.entrySet()) {
-                        if (!code.isEmpty())
+                        if (!code.isEmpty() && !(commandList.getValue().isEmpty()))
                             code += "|";
                         if (commandList.getValue().size() > 0) {
                             code += reactionTypes.get(commandList.getKey());
@@ -203,7 +203,7 @@ public class CodeEditor extends ActionBarActivity {
                             public void onDismiss(AddParam myDialogFragment) {
                                 String command_type = dataStore.getString("type");
                                 int command_param = dataStore.getInt("param");
-                                if (command_type != null ) {
+                                if (command_type != null && !command_type.isEmpty()) {
                                     Command newCommand = new Command(command_type, command_param);
                                     commandLists.get(currentTabTag).add(newCommand);
                                     adapters.get(currentTabTag).notifyDataSetChanged();

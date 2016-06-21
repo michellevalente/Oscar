@@ -79,8 +79,23 @@ public class AddParam extends DialogFragment {
             builder.setView(input);
             builder.setNeutralButton("OK", new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int which) {
+                    String inputText = input.getText().toString();
+                    Integer value;
+                    try {
+                        value = Integer.valueOf(inputText);
+                    } catch (NumberFormatException e) {
+                        value = null;
+                    }
+                    if (!inputText.isEmpty() && value != null)
+                        dataStore.setInt("param", value.intValue());
+                    else
+                        dataStore.setString("type", "");
 
-                    dataStore.setInt("param", Integer.valueOf(input.getText().toString()));
+                    dismiss();
+                }
+            }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    dataStore.setString("type", "");
                     dismiss();
                 }
             });
