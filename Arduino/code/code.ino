@@ -9,7 +9,7 @@
 
 #define _DEBUG
 
-#define MAX_CODE 150
+#define MAX_CODE 500
 #define MAX_REACTIONS 3
 #define _offset  -50
 
@@ -22,6 +22,7 @@
 #define SENSOR_TWO_IN   3
 #define SENSOR_TWO_OUT  2
 #define BUZZER          4
+#define BLOCK_THRESH    10
 
 #define FREQ_RANGE_LOWER 38000
 #define FREQ_RANGE_UPPER 42000
@@ -168,14 +169,13 @@ boolean REACTION_runCode(Reaction* r) {
           setServo(200, 200);
       }
       else if(strcmp(command,"turn") == 0) { // buzzer
-        Serial.println("TURN!");
         if(r->code[(r->codePos)++] == '0') {
           setServo(-200, 200);
-          REACTION_setWait(r, now, 800);
+          REACTION_setWait(r, now, 1500);
         }
         else {
           setServo(200, -200);
-          REACTION_setWait(r, now, 800);
+          REACTION_setWait(r, now, 1500);
         }
         r->isTurning = true;
       }
@@ -227,9 +227,13 @@ int checkReactions() {
   int i, reactionIdx = 0;
   
   for (i = 1; i < nReactions; i++) {
+    // if reaction is dead ignore it
+    int sensorLeft  = sensorDistance(SENSOR_ONE_OUT, SENSOR_ONE_IN);            
+    int sensorRight = sensorDistance(SENSOR_TWO_OUT, SENSOR_TWO_IN); 
+
     // Check if car is blocked
     ReactionType type = reactions[i].type;
-    if (type == CAR_BLOCKED && blockCount > 20)
+    if (type == CAR_BLOCKED && blockCount > BLOCK_THRESH)
         reactionIdx = i;
     else if (type = TIMER) {
       // if wait is -1 this is the first time this trail is executing, so
@@ -287,7 +291,7 @@ void loop() {
   // Check for blocking
   int sensorLeft  = sensorDistance(SENSOR_ONE_OUT, SENSOR_ONE_IN);            
   int sensorRight = sensorDistance(SENSOR_TWO_OUT, SENSOR_TWO_IN); 
-  blockCount += ((!sensorLeft ? 1 : 0) + (!sensorRight ? 1 : 0));
+  blockCount += ((sensorLeft <= 1) + (sensorRight <= 1));
   
 #ifdef _DEBUG
   //digitalWrite(8, !sensorLeft ? HIGH : LOW); 
@@ -295,7 +299,7 @@ void loop() {
 #endif
 
   // Reset block count every 1ms
-  if (millis() > last_show + 1000) {
+  if (millis() > last_show + 500) {
     #ifdef _DEBUG
         for (int i = 0; i < nReactions; i++) {
            Serial.print("code ");
@@ -309,12 +313,16 @@ void loop() {
          Serial.println(curReaction);
          Serial.print("nReacts: ");
          Serial.println(nReactions);
-         Serial.print("blockCount: ");
-         Serial.println(blockCount);         
+//         Serial.print("sensorLeft: ");
+//         Serial.println(sensorLeft);
+//         Serial.print("sensorRight: ");
+//         Serial.println(sensorRight);
+         Serial.print("block: ");
+         Serial.println(blockCount);
+         
     #endif
-
-    blockCount = 0; 
-    last_show = millis();
+    blockCount = 0;
+    last_show = millis(); 
   }
 
   
